@@ -4,6 +4,7 @@ const ExpressError = require("../expressError");
 const db = require("../db");
 const slugify = require("slugify");
 const { nextTick } = require("process");
+
 //Route to get /companies
 router.get("/", async (req, res, next) => {
   try {
@@ -27,10 +28,19 @@ router.get("/:code", async (req, res, next) => {
       `SELECT code, name, description FROM companies WHERE code = $1`,
       [code]
     );
+
+    let data = result.rows[0];
+
     if (result.rows.length === 0) {
       throw new ExpressError(`Company cannot be found: ${code}`, 404);
     }
-    return res.json({ company: result.rows[0] });
+    return res.json({
+      company: {
+        code: data.code,
+        name: data.name,
+        description: data.description,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -47,7 +57,7 @@ router.post("/", async (req, res, next) => {
       [code, name, description]
     );
 
-    return res.json({ company: result });
+    return res.json({ company: result.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -69,7 +79,7 @@ router.put("/:code", async (res, req, next) => {
       throw new ExpressError(`Company cannot be found: ${code}`, 404);
     }
 
-    return res.json({ company: result });
+    return res.status(201).json({ company: result.rows[0] });
   } catch (err) {
     next(err);
   }
@@ -79,19 +89,18 @@ router.put("/:code", async (res, req, next) => {
 router.delete("/:code", async (res, req, next) => {
   try {
     let code = req.params.code;
-    let { name, description } = req.body;
+
     const result = await debug.query(
-      `DELETE companies 
-      SET name = $1, description = $2 WHERE code = $3 RETURNING code, name, description`,
-      [code, name, description]
+      `DELETE companies WHERE code = $1 RETURNING code`,
+      [code]
     );
 
-    // Return 404 if company cannot be found.
+    // Return 404 if Invoice cannot be found.
     if (result.rows.length === 0) {
-      throw new ExpressError(`Company cannot be found: ${code}`, 404);
+      throw new ExpressError(`Invoice cannot be found: ${code}`, 404);
     }
 
-    return res.json({ company: result });
+    return res.json({ status: "deleted" });
   } catch (err) {
     next(err);
   }
