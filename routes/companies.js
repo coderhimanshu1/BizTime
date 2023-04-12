@@ -24,23 +24,26 @@ router.get("/", async (req, res, next) => {
 router.get("/:code", async (req, res, next) => {
   try {
     let code = req.params.code;
-    const result = await db.query(
+    const compResult = await db.query(
       `SELECT code, name, description FROM companies WHERE code = $1`,
       [code]
     );
+    const invResult = await db.query(
+      `SELECT id
+      FROM invoices
+      WHERE comp_code = $1`,
+      [code]
+    );
 
-    let data = result.rows[0];
-
-    if (result.rows.length === 0) {
-      throw new ExpressError(`Company cannot be found: ${code}`, 404);
+    if (compResult.rows.length === 0) {
+      throw new ExpressError(`Company could not be found: ${code}`, 404);
     }
-    return res.json({
-      company: {
-        code: data.code,
-        name: data.name,
-        description: data.description,
-      },
-    });
+
+    const company = compResult.rows[0];
+    const invoices = invResult.rows;
+    company.invoices = invoices.map((inv) => inv.id);
+
+    return res.json({ company: company });
   } catch (err) {
     next(err);
   }
